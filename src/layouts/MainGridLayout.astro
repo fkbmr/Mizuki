@@ -145,6 +145,9 @@ const hasRightSidebarComponents =
 const defaultPostListLayout = siteConfig.postListLayout?.defaultMode || "list";
 const initialRightSidebarHidden = defaultPostListLayout === "grid";
 
+// 检查是否启用右侧边栏控制按钮
+const showRightControlButton = sidebarLayoutConfig.showRightControlButton !== false;
+
 // 动态网格布局类名 - 根据侧边栏模式调整列宽
 const gridCols = `
 	${mobileShowSidebar ? "grid-cols-1" : "grid-cols-1"}
@@ -207,6 +210,7 @@ const transparentClass = shouldEnableTransparency
 	navbarTransparentMode: siteConfig.banner?.navbar?.transparentMode || "semi", 
 	defaultWallpaperMode: siteConfig.wallpaperMode.defaultMode, 
 	defaultPostListLayout: siteConfig.postListLayout?.defaultMode || "list",
+	showRightControlButton: showRightControlButton,
 	i18nRightSidebarShow: i18n(I18nKey.rightSidebarShow),
 	i18nRightSidebarHide: i18n(I18nKey.rightSidebarHide)
 }}>
@@ -301,6 +305,11 @@ const transparentClass = shouldEnableTransparency
 	
 	// 右边栏展开/收起控制
 	function initRightSidebarToggle() {
+		// 如果配置中禁用了右侧边栏控制按钮，直接返回
+		if (!showRightControlButton) {
+			return;
+		}
+		
 		const toggleButton = document.getElementById('right-sidebar-toggle');
 		const rightSidebar = document.querySelector('.right-sidebar-container');
 		const mainGrid = document.getElementById('main-grid');
@@ -1000,8 +1009,8 @@ const transparentClass = shouldEnableTransparency
             {/* 右侧边栏 - 在双侧边栏模式下渲染，CSS控制显示隐藏 */}
             {isBothSidebarMode && hasRightSidebarComponents && <div class={`right-sidebar-container ${rightSidebarClass} ${transparentClass}`}><RightSideBar headings={headings}></RightSideBar></div>}
 
-            {/* 右边栏控制按钮 - 仅在桌面端双侧边栏模式且有右侧边栏组件时显示 */}
-            {isBothSidebarMode && hasRightSidebarComponents && (
+            {/* 右边栏控制按钮 - 仅在桌面端双侧边栏模式且有右侧边栏组件且配置启用时显示 */}
+            {isBothSidebarMode && hasRightSidebarComponents && showRightControlButton && (
                 <button
                     id="right-sidebar-toggle"
                     class="hidden lg:flex fixed items-center justify-center z-40 transition-all duration-300 ease-in-out"
