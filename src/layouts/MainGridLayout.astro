@@ -225,6 +225,62 @@ const transparentClass = shouldEnableTransparency
 		const BANNER_HEIGHT_HOME = BANNER_HEIGHT + BANNER_HEIGHT_EXTEND;
 		const MAIN_PANEL_OVERLAPS_BANNER_HEIGHT = 3.5;
 		
+		// 提取常用的检测函数
+		window.__isHomePage = function() {
+			return window.location.pathname === '/' || window.location.pathname === '';
+		};
+		
+		window.__isDesktop = function() {
+			return window.innerWidth >= 1280;
+		};
+		
+		// 提取公共的布局模式应用函数
+		window.__applyLayoutMode = function(currentLayout) {
+			const mainGrid = document.getElementById('main-grid');
+			const rightSidebar = document.querySelector('.right-sidebar-container');
+			const toggleButton = document.getElementById('right-sidebar-toggle');
+			const postListContainer = document.getElementById('post-list-container');
+			const isDesktop = window.__isDesktop();
+			const isHomePage = window.__isHomePage();
+			
+			if (mainGrid) {
+				mainGrid.setAttribute('data-layout-mode', currentLayout);
+			}
+			
+			// 根据布局模式显示或隐藏右侧边栏
+			if (rightSidebar) {
+				if (currentLayout === 'grid') {
+					rightSidebar.classList.add('hidden-in-grid-mode');
+				} else {
+					rightSidebar.classList.remove('hidden-in-grid-mode');
+				}
+			}
+			
+			// 根据布局模式显示或隐藏右侧边栏控制按钮
+			if (toggleButton) {
+				if (currentLayout === 'grid' || !isDesktop || isHomePage) {
+					toggleButton.style.display = 'none';
+				} else {
+					toggleButton.style.display = 'flex';
+				}
+			}
+			
+			// 同时更新文章列表容器的CSS类
+			if (postListContainer) {
+				postListContainer.classList.remove('list-mode', 'grid-mode');
+				
+				if (currentLayout === 'grid') {
+					postListContainer.classList.add('grid-mode');
+					postListContainer.classList.add('grid', 'grid-cols-1', 'lg:grid-cols-2', 'gap-6');
+					postListContainer.classList.remove('flex', 'flex-col');
+				} else {
+					postListContainer.classList.add('list-mode');
+					postListContainer.classList.add('flex', 'flex-col');
+					postListContainer.classList.remove('grid', 'grid-cols-1', 'lg:grid-cols-2', 'gap-6');
+				}
+			}
+		};
+		
 		// 立即应用 body 类，确保首次渲染就是正确的状态
 		switch(wallpaperMode) {
 			case 'banner':
@@ -260,45 +316,7 @@ const transparentClass = shouldEnableTransparency
 			if (mainGrid) {
 				const savedLayout = localStorage.getItem('postListLayout');
 				const currentLayout = savedLayout || defaultPostListLayout;
-				mainGrid.setAttribute('data-layout-mode', currentLayout);
-				
-				// 根据布局模式显示或隐藏右侧边栏
-				const rightSidebar = document.querySelector('.right-sidebar-container');
-				if (rightSidebar) {
-					if (currentLayout === 'grid') {
-						rightSidebar.classList.add('hidden-in-grid-mode');
-					} else {
-						rightSidebar.classList.remove('hidden-in-grid-mode');
-					}
-				}
-				
-				// 根据布局模式显示或隐藏右侧边栏控制按钮
-				const toggleButton = document.getElementById('right-sidebar-toggle');
-				if (toggleButton) {
-					// 检查是否为桌面端
-					const isDesktop = window.innerWidth >= 1280;
-					if (currentLayout === 'grid' || !isDesktop) {
-						toggleButton.style.display = 'none';
-					} else {
-						toggleButton.style.display = 'flex';
-					}
-				}
-				
-				// 同时更新文章列表容器的CSS类
-				const postListContainer = document.getElementById('post-list-container');
-				if (postListContainer) {
-					postListContainer.classList.remove('list-mode', 'grid-mode');
-					
-					if (currentLayout === 'grid') {
-						postListContainer.classList.add('grid-mode');
-						postListContainer.classList.add('grid', 'grid-cols-1', 'lg:grid-cols-2', 'gap-6');
-						postListContainer.classList.remove('flex', 'flex-col');
-					} else {
-						postListContainer.classList.add('list-mode');
-						postListContainer.classList.add('flex', 'flex-col');
-						postListContainer.classList.remove('grid', 'grid-cols-1', 'lg:grid-cols-2', 'gap-6');
-					}
-				}
+				window.__applyLayoutMode(currentLayout);
 			}
 		});
 	})();
@@ -318,19 +336,31 @@ const transparentClass = shouldEnableTransparency
 		
 		if (!toggleButton || !rightSidebar || !mainGrid) return;
 		
+		// 使用全局检测函数
+		const isHomePage = window.__isHomePage();
+		
 		// 根据当前布局模式显示/隐藏按钮
 		function updateToggleButtonVisibility() {
 			const currentLayout = mainGrid.getAttribute('data-layout-mode') || defaultPostListLayout;
-			// 检查是否为桌面端（lg 断点是 1280px）
-			const isDesktop = window.innerWidth >= 1280;
+			const isDesktop = window.__isDesktop();
+			const isCurrentHomePage = window.__isHomePage();
 			
-			if (currentLayout === 'grid' || !isDesktop) {
-				// 网格模式下或移动端隐藏按钮
+			if (currentLayout === 'grid' || !isDesktop || isCurrentHomePage) {
+				// 网格模式下、移动端、或主页时隐藏按钮
 				toggleButton.style.display = 'none';
 			} else {
-				// 列表模式下且在桌面端显示按钮
+				// 列表模式下且在桌面端且非主页时显示按钮
 				toggleButton.style.display = 'flex';
 			}
+		}
+		
+		// 如果是主页，强制展开右侧边栏并隐藏按钮
+		if (isHomePage) {
+			// 清除之前保存的收起状态
+			rightSidebar.classList.remove('right-sidebar-collapsed');
+			mainGrid.classList.remove('right-sidebar-hidden');
+			toggleButton.style.display = 'none';
+			return; // 主页不需要执行后续的切换逻辑
 		}
 		
 		// 从 localStorage 读取右边栏状态，默认展开
@@ -374,11 +404,6 @@ const transparentClass = shouldEnableTransparency
 		
 		// 应用初始状态
 		function applyRightSidebarState(animate = false) {
-			if (!animate) {
-				rightSidebar.style.transition = 'none';
-				mainGrid.style.transition = 'none';
-			}
-			
 			const tipText = toggleTip?.querySelector('.tip-text');
 			
 			if (isRightSidebarCollapsed) {
@@ -395,15 +420,19 @@ const transparentClass = shouldEnableTransparency
 				if (tipText) tipText.textContent = i18nRightSidebarHide;
 			}
 			
-			if (!animate) {
+			// 如果有动画，等待动画完成后再更新按钮位置
+			if (animate) {
+				// 在动画期间也实时更新按钮位置
+				const animationDuration = 300; // 与CSS动画时长一致
+				const updateInterval = setInterval(updateToggleButtonPosition, 16); // 每帧更新
 				setTimeout(() => {
-					rightSidebar.style.transition = '';
-					mainGrid.style.transition = '';
-				}, 50);
+					clearInterval(updateInterval);
+					updateToggleButtonPosition(); // 最后再更新一次确保准确
+				}, animationDuration);
+			} else {
+				// 无动画时，稍微延迟以确保DOM更新完成
+				setTimeout(updateToggleButtonPosition, 50);
 			}
-			
-			// 更新按钮位置
-			updateToggleButtonPosition();
 		}
 		
 		// 更新按钮位置（根据右边栏状态）
@@ -412,13 +441,17 @@ const transparentClass = shouldEnableTransparency
 			if (!mainContent || !toggleButton) return;
 			
 			const mainContentRect = mainContent.getBoundingClientRect();
+			const buttonWidth = 40; // 按钮宽度 10 * 4 = 40px
+			const gap = 16; // gap-4 = 16px
 			
 			if (isRightSidebarCollapsed) {
-				// 收起时：按钮在主内容右边界外侧（向右移动一点）
-				toggleButton.style.left = `${mainContentRect.right + 5}px`;
+				// 收起时：按钮在主内容右边界右侧，居中在可用空间
+				// 主内容右边界 + 一半间距 - 一半按钮宽度
+				toggleButton.style.left = `${mainContentRect.right + gap / 2 - buttonWidth / 2}px`;
 			} else {
-				// 展开时：按钮在主内容右边界上（稍微向左）
-				toggleButton.style.left = `${mainContentRect.right - 10}px`;
+				// 展开时：按钮在主内容和侧边栏之间的间隙中心
+				// 主内容右边界 + 一半间距 - 一半按钮宽度
+				toggleButton.style.left = `${mainContentRect.right + gap / 2 - buttonWidth / 2}px`;
 			}
 		}
 		
@@ -516,17 +549,16 @@ const transparentClass = shouldEnableTransparency
 		
 		// 监听布局模式切换事件
 		window.addEventListener('layoutChange', function(event) {
-			// 直接从事件中获取布局模式，而不是从 DOM 中读取
 			const newLayout = event.detail?.layout;
-			// 检查是否为桌面端
-			const isDesktop = window.innerWidth >= 1280;
+			const isDesktop = window.__isDesktop();
+			const isCurrentHomePage = window.__isHomePage();
 
 			if (newLayout) {
-				if (newLayout === 'grid' || !isDesktop) {
-					// 网格模式下或移动端隐藏按钮
+				if (newLayout === 'grid' || !isDesktop || isCurrentHomePage) {
+					// 网格模式下、移动端、或主页时隐藏按钮
 					toggleButton.style.display = 'none';
 				} else {
-					// 列表模式下且在桌面端显示按钮
+					// 列表模式下且在桌面端且非主页时显示按钮
 					toggleButton.style.display = 'flex';
 					// 列表模式下，更新按钮位置以确保位置正确
 					setTimeout(updateToggleButtonPosition, 100);
@@ -569,11 +601,8 @@ const transparentClass = shouldEnableTransparency
 		const body = document.body;
 		const mainContent = document.querySelector('.absolute.w-full.z-30.pointer-events-none');
 		
-		// 定义 banner 高度常量（与 constants.ts 保持一致）
+		// 使用在立即执行函数中定义的常量（避免重复定义）
 		const BANNER_HEIGHT = 35;
-		const BANNER_HEIGHT_EXTEND = 30;
-		const BANNER_HEIGHT_HOME = BANNER_HEIGHT + BANNER_HEIGHT_EXTEND;
-		const MAIN_PANEL_OVERLAPS_BANNER_HEIGHT = 3.5;
 		
 		switch(wallpaperMode) {
 			case 'banner':
@@ -670,52 +699,11 @@ const transparentClass = shouldEnableTransparency
 			
 			// 在内容替换后立即应用布局，不等待其他脚本
 			window.swup.hooks.on('content:replace', function() {
-				const mainGrid = document.getElementById('main-grid');
-				if (mainGrid) {
-					const currentLayout = window.__pendingLayoutMode || localStorage.getItem('postListLayout') || defaultPostListLayout;
-					mainGrid.setAttribute('data-layout-mode', currentLayout);
-					
-					const rightSidebar = document.querySelector('.right-sidebar-container');
-					if (rightSidebar) {
-						if (currentLayout === 'grid') {
-							rightSidebar.classList.add('hidden-in-grid-mode');
-						} else {
-							rightSidebar.classList.remove('hidden-in-grid-mode');
-						}
-					}
-					
-					// 根据布局模式显示或隐藏右侧边栏控制按钮
-					const toggleButton = document.getElementById('right-sidebar-toggle');
-					if (toggleButton) {
-						// 检查是否为桌面端
-						const isDesktop = window.innerWidth >= 1280;
-						if (currentLayout === 'grid' || !isDesktop) {
-							toggleButton.style.display = 'none';
-						} else {
-							toggleButton.style.display = 'flex';
-						}
-					}
-					
-					// 关键：同时更新文章列表容器的CSS类
-					const postListContainer = document.getElementById('post-list-container');
-					if (postListContainer) {
-						// 移除现有布局类
-						postListContainer.classList.remove('list-mode', 'grid-mode');
-						
-						if (currentLayout === 'grid') {
-							postListContainer.classList.add('grid-mode');
-							postListContainer.classList.add('grid', 'grid-cols-1', 'lg:grid-cols-2', 'gap-6');
-							postListContainer.classList.remove('flex', 'flex-col');
-						} else {
-							postListContainer.classList.add('list-mode');
-							postListContainer.classList.add('flex', 'flex-col');
-							postListContainer.classList.remove('grid', 'grid-cols-1', 'lg:grid-cols-2', 'gap-6');
-						}
-					}
-					
-					// 清除临时状态
-					delete window.__pendingLayoutMode;
-				}
+				const currentLayout = window.__pendingLayoutMode || localStorage.getItem('postListLayout') || defaultPostListLayout;
+				window.__applyLayoutMode(currentLayout);
+				
+				// 清除临时状态
+				delete window.__pendingLayoutMode;
 			});
 			
 			return true;
@@ -742,71 +730,18 @@ const transparentClass = shouldEnableTransparency
 		
 		// 在Swup页面切换时也要重新应用布局模式
 		requestAnimationFrame(function() {
-			const mainGrid = document.getElementById('main-grid');
-			if (mainGrid) {
-				const savedLayout = localStorage.getItem('postListLayout');
-				const currentLayout = savedLayout || defaultPostListLayout;
-				mainGrid.setAttribute('data-layout-mode', currentLayout);
-				
-				const rightSidebar = document.querySelector('.right-sidebar-container');
-				const toggleButton = document.getElementById('right-sidebar-toggle');
-				
-				if (currentLayout === 'grid') {
-					if (rightSidebar) {
-						rightSidebar.classList.add('hidden-in-grid-mode');
-					}
-					if (toggleButton) {
-						toggleButton.style.display = 'none';
-					}
-				} else {
-					if (rightSidebar) {
-						rightSidebar.classList.remove('hidden-in-grid-mode');
-					}
-					if (toggleButton) {
-						// 检查是否为桌面端
-						const isDesktop = window.innerWidth >= 1280;
-						if (isDesktop) {
-							toggleButton.style.display = 'flex';
-						} else {
-							toggleButton.style.display = 'none';
-						}
-					}
-				}
-			}
+			const savedLayout = localStorage.getItem('postListLayout');
+			const currentLayout = savedLayout || defaultPostListLayout;
+			window.__applyLayoutMode(currentLayout);
 		});
 	});
+	
 	// 在页面完全加载后，再次确认布局模式是否正确
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', function() {
-			const mainGrid = document.getElementById('main-grid');
-			if (mainGrid) {
-				const savedLayout = localStorage.getItem('postListLayout');
-				const currentLayout = savedLayout || defaultPostListLayout;
-				mainGrid.setAttribute('data-layout-mode', currentLayout);
-				
-				const rightSidebar = document.querySelector('.right-sidebar-container');
-				const toggleButton = document.getElementById('right-sidebar-toggle');
-				
-				if (currentLayout === 'grid') {
-					if (rightSidebar) {
-						rightSidebar.classList.add('hidden-in-grid-mode');
-					}
-					if (toggleButton) {
-						toggleButton.style.display = 'none';
-					}
-				} else {
-					// 列表模式
-					if (toggleButton) {
-						// 检查是否为桌面端
-						const isDesktop = window.innerWidth >= 1280;
-						if (isDesktop) {
-							toggleButton.style.display = 'flex';
-						} else {
-							toggleButton.style.display = 'none';
-						}
-					}
-				}
-			}
+			const savedLayout = localStorage.getItem('postListLayout');
+			const currentLayout = savedLayout || defaultPostListLayout;
+			window.__applyLayoutMode(currentLayout);
 		});
 	}
 </script>
@@ -1196,44 +1131,46 @@ body.no-banner-mode .absolute.w-full.z-30 {
     opacity: 1;
 }
 
-/* 右边栏收起状态 */
+/* 右边栏收起状态 - 结合宽度和位移实现完全隐藏 */
 .right-sidebar-collapsed {
-    width: 0 !important;
-    min-width: 0 !important;
-    max-width: 0 !important;
-    opacity: 0 !important;
+    /* 向右平移整个宽度，完全移出视口 */
+    transform: translateX(100%);
+    /* 淡出效果 */
+    opacity: 0;
+    /* 禁用交互 */
+    pointer-events: none;
+    /* 隐藏溢出内容 */
     overflow: hidden !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    pointer-events: none !important;
-    visibility: hidden !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* 平滑过渡动画 */
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 右边栏收起时，内部所有子元素也隐藏 */
-.right-sidebar-collapsed * {
-    display: none !important;
-}
-
-/* 右边栏展开状态 */
+/* 右边栏展开状态 - 确保平滑过渡 */
 .right-sidebar-container {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* 默认位置在视口内 */
+    transform: translateX(0);
+    opacity: 1;
     overflow: visible;
+    /* 平滑过渡动画 */
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 右边栏隐藏时，调整网格布局 - 直接移除右侧栏列 */
+/* 右边栏隐藏时，调整网格布局 - 同步动画 */
 #main-grid {
     transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @media (min-width: 1280px) {
-    #main-grid.right-sidebar-hidden {
-        grid-template-columns: 17.5rem 1fr !important;
+    /* 默认三列布局（左侧边栏 + 主内容 + 右侧边栏） */
+    #main-grid:not(.right-sidebar-hidden) {
+        grid-template-columns: 17.5rem 1fr 17.5rem !important;
     }
     
-    /* 收起时主内容区域占据剩余空间 */
-    #main-grid.right-sidebar-hidden #swup-container {
-        grid-column: 2 / 3 !important;
+    /* 收起时调整为两列布局，右侧栏列宽变为 0 */
+    #main-grid.right-sidebar-hidden {
+        grid-template-columns: 17.5rem 1fr 0 !important;
     }
 }
 
