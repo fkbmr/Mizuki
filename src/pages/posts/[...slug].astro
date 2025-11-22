@@ -265,9 +265,32 @@ const jsonLd = {
             ></div>
 
             <div class="card-base p-6 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center justify-center h-12 w-12 rounded-lg bg-[var(--enter-btn-bg)]">
+                        <Icon
+                            name="material-symbols:history-rounded"
+                            class="text-3xl text-[var(--primary)]"
+                        />
+                    </div>
+                   
+                    <div class="flex flex-col gap-1">
+                        <div id="modifiedtime" class="text-[1.0rem] leading-tight text-black/75 dark:text-white/75"></div>
+                        <p class="text-[0.8rem] leading-tight text-black/75 dark:text-white/75">
+                            {i18n(I18nKey.lastModifiedOutdated)}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </>
+    )}
                 <script is:inline>
                     function runtime() {
                         const lastModifiedElement = document.getElementById('last-modified');
+            if (!lastModifiedElement) {
+                clearInterval(window.lastModifiedUpdate);
+                window.lastModifiedUpdate = null;
+                return;
+            };
                         const startDate = new Date(lastModifiedElement.dataset.lastModified);
                         const currentDate = new Date();
                         const diff = currentDate - startDate;
@@ -315,26 +338,9 @@ const jsonLd = {
 
                         document.getElementById("modifiedtime").innerHTML = runtimeString;
                     }
-                    setInterval(runtime, 1000);
+        runtime()
+        window.lastModifiedUpdate = setInterval(runtime, 1000);
                 </script>
-                <div class="flex items-center gap-3">
-                    <div class="flex items-center justify-center h-12 w-12 rounded-lg bg-[var(--enter-btn-bg)]">
-                        <Icon
-                            name="material-symbols:history-rounded"
-                            class="text-3xl text-[var(--primary)]"
-                        />
-                    </div>
-                   
-                    <div class="flex flex-col gap-1">
-                        <div id="modifiedtime" class="text-[1.0rem] leading-tight text-black/75 dark:text-white/75"></div>
-                        <p class="text-[0.8rem] leading-tight text-black/75 dark:text-white/75">
-                            {i18n(I18nKey.lastModifiedOutdated)}
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </>
-    )}
 
     <div
         class="flex flex-col md:flex-row justify-between mb-4 gap-4 overflow-hidden w-full"
